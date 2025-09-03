@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <title>📸 عکس با شماره</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <style>
+    body { text-align: center; background: #111; color: #fff; font-family: tahoma; }
+    video, canvas { width: 90%; max-width: 400px; border: 2px solid #ff0044; border-radius: 10px; margin: 10px; }
+    input, button { padding: 10px; margin: 10px; border-radius: 10px; font-size: 16px; }
+    #capture { background: #ff0044; color: #fff; border: none; cursor: pointer; }
+    #send { background: #00cc88; color: #fff; border: none; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h2>📸 شماره وارد کن و عکس بگیر</h2>
+  <input type="text" id="number" placeholder="شماره خودتو وارد کن">
+  <br>
+  <video id="video" autoplay playsinline></video><br>
+  <button id="capture">📷 عکس بگیر</button>
+  <button id="send">☁️ ارسال</button>
+  <canvas id="canvas"></canvas>
+
+  <script>
+    // ====== تنظیمات Firebase خودت ======
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID",
+      databaseURL: "YOUR_DATABASE_URL"
+    };
+    firebase.initializeApp(firebaseConfig);
+
+    const storage = firebase.storage();
+    const database = firebase.database();
+
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let photoBlob = null;
+
+    // دسترسی دوربین
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => { video.srcObject = stream; })
+      .catch(err => alert("❌ اجازه دوربین داده نشد"));
+
+    // گرفتن عکس
+    document.getElementById('capture').addEventListener('click', () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob => { photoBlob = blob; }, 'image/png');
+      alert("✅ عکس گرفته شد!");
+    });
+
+    // ارسال عکس + شماره به Firebase
+    document.getElementById('send').addEventListener('click', () => {
+      const number = document.getElementById('number').value.trim();
+      if (!number) return alert("📌 لطفاً شماره وارد کن");
+      if (!photoBlob) return alert("📸 اول عکس بگیر");
+
+      const fileName = photo_${Date.now()}.png;
+      const storageRef = storage.ref().child(fileName);
+
+      storageRef.put(photoBlob).then(snapshot => {
+        snapshot.ref.getDownloadURL().then(url => {
+          database.ref('photos/' + number).push({
+            timestamp: Date.now(),
+            photoURL: url
+          });
+          alert("✅ عکس و شماره ذخیره شد تو Firebase");
+        });
+      }).catch(err => {
+        console.error(err);
+        alert("❌ خطا در آپلود");
+      });
+    });
+  </script>
+</body>
+</html>
